@@ -1,8 +1,7 @@
 import { axiosInstance } from './axios-instance';
 import { config } from '~/shared/config/env';
 import type { paths, components } from '~/shared/api/schema/v1';
-import { SortDirection } from '~/shared/model';
-import type { SortCriterion, SortField } from '~/shared/model';
+import { SortDirection, SortField } from '~/shared/model';
 
 // Response types from the API schema
 type PostSchema = components['schemas']['PostSchema'];
@@ -12,6 +11,8 @@ export type GetPostsParams = Required<paths['/api/Posts/']['get']['parameters'][
   titleSort?: SortDirection;
   dateSort?: SortDirection;
   commentsSort?: SortDirection;
+  sortOrder?: SortField[];
+  sort_order?: string;
 };
 
 // Type for pagination parameters
@@ -22,14 +23,20 @@ export interface PaginationParams {
   titleSort?: SortDirection;
   dateSort?: SortDirection;
   commentsSort?: SortDirection;
+  sortOrder?: SortField[];
 }
 
 // Convert sort parameters to API format
 const formatSortParams = (params: GetPostsParams): GetPostsParams => {
   const formattedParams = { ...params };
   
-  // Apply sort criteria in order of importance
+  // Apply sort criteria in order of importance based on sortOrder
   // The backend expects these specific parameter names
+  if (params.sortOrder && params.sortOrder.length > 0) {
+    // Add a sort_order parameter that lists the fields in order of priority
+    formattedParams.sort_order = params.sortOrder.join(',');
+  }
+  
   return formattedParams;
 };
 
@@ -55,4 +62,4 @@ export const postsApi = {
     });
     return response.data.posts;
   },
-}; 
+};

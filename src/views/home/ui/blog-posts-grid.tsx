@@ -5,6 +5,7 @@ import { useDebouncedValue } from '@mantine/hooks';
 import { AppCard, AppGrid, AppPagination, AppLoading, AppError } from '../../../shared/ui';
 import { usePosts } from '../model/use-posts';
 import { SortControls, useSort } from '~/features/sort';
+import { SortField } from '~/shared/model';
 
 export interface BlogPostsGridProps {
   /** Title displayed at the top of the posts grid */
@@ -24,7 +25,9 @@ export function BlogPostsGrid({ title = 'Blog Posts' }: BlogPostsGridProps) {
     commentsSort, 
     setTitleSort, 
     setDateSort, 
-    setCommentsSort 
+    setCommentsSort,
+    sortOrder,
+    reorderSortCriteria 
   } = useSort();
   
   const PAGE_SIZE = 10;
@@ -36,7 +39,8 @@ export function BlogPostsGrid({ title = 'Blog Posts' }: BlogPostsGridProps) {
     search: debouncedSearchQuery,
     titleSort,
     dateSort,
-    commentsSort
+    commentsSort,
+    sortOrder
   });
   
   // Extract posts and total from API response
@@ -70,6 +74,11 @@ export function BlogPostsGrid({ title = 'Blog Posts' }: BlogPostsGridProps) {
   const handleCommentsSortChange = (value?: string) => {
     setCommentsSort(value as any);
     setPage(1); // Reset to first page when sort changes
+  };
+  
+  const handleSortOrderChange = (newOrder: SortField[]) => {
+    reorderSortCriteria(newOrder);
+    setPage(1); // Reset to first page when sort order changes
   };
   
   return (
@@ -109,6 +118,8 @@ export function BlogPostsGrid({ title = 'Blog Posts' }: BlogPostsGridProps) {
           onTitleSortChange={handleTitleSortChange}
           onDateSortChange={handleDateSortChange}
           onCommentsSortChange={handleCommentsSortChange}
+          sortOrder={sortOrder}
+          onSortOrderChange={handleSortOrderChange}
           className="mb-6"
         />
         
