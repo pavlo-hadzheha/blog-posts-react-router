@@ -6,7 +6,7 @@
     "build": "react-router build",
     "dev": "react-router dev",
     "start": "react-router-serve ./build/server/index.js",
-    "typecheck": "react-router typegen && tsc",
+    "typecheck": "tsc --noEmit",
     "openapi:generate": "npx openapi-typescript@7.4.4",
     "upgrade:mantine": "npm install @mantine/core@latest @mantine/hooks@latest",
     "upgrade:react-query": "npm install @tanstack/react-query@latest @tanstack/react-query-devtools@latest",

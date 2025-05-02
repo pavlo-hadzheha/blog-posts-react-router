@@ -497,24 +497,9 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            /** Format: uuid */
-                            id: string;
-                            title: string;
-                            description: string;
-                            /** Format: date-time */
-                            createdAt: string;
-                            /** Format: date-time */
-                            updatedAt: string;
-                            comments: {
-                                /** Format: uuid */
-                                id: string;
-                                text: string;
-                                /** Format: date-time */
-                                createdAt: string;
-                                /** Format: date-time */
-                                updatedAt: string;
-                            }[];
-                        }[];
+                            posts: components["schemas"]["PostSchema"][];
+                            total: number;
+                        };
                     };
                 };
             };

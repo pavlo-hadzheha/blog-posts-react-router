@@ -9,17 +9,7 @@ type TReactQueryClientProviderProps = {
 }
 
 function ReactQueryClientProvider({ children }: TReactQueryClientProviderProps) {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-          },
-        },
-      })
-  )
+  const [queryClient] = useState(() => new QueryClient())
 
   return (
     <QueryClientProvider client={queryClient}>

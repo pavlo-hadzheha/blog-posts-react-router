@@ -4,7 +4,6 @@ import { IconSearch } from '@tabler/icons-react';
 import { useDebouncedValue } from '@mantine/hooks';
 import { AppCard, AppGrid, AppPagination, AppLoading, AppError } from '../../../shared/ui';
 import { usePosts } from '../model/use-posts';
-import { mockPosts } from '../../../shared/api/mock-data';
 
 export interface BlogPostsGridProps {
   /** Title displayed at the top of the posts grid */
@@ -20,25 +19,15 @@ export function BlogPostsGrid({ title = 'Blog Posts' }: BlogPostsGridProps) {
   const PAGE_SIZE = 10;
 
   // Fetch posts data with pagination and search
-  const { data: posts, isLoading, isError, error, refetch } = usePosts({
+  const { data, isLoading, isError, error, refetch } = usePosts({
     page,
     pageSize: PAGE_SIZE,
     search: debouncedSearchQuery
   });
   
-  // Calculate total filtered posts for pagination
-  const getTotalPosts = () => {
-    if (debouncedSearchQuery) {
-      const searchLower = debouncedSearchQuery.toLowerCase();
-      return mockPosts.filter(post => 
-        post.title.toLowerCase().includes(searchLower) || 
-        post.description.toLowerCase().includes(searchLower)
-      ).length;
-    }
-    return mockPosts.length;
-  };
-  
-  const totalPosts = getTotalPosts();
+  // Extract posts and total from API response
+  const posts = data?.posts || [];
+  const totalPosts = data?.total || 0;
   const totalPages = Math.max(1, Math.ceil(totalPosts / PAGE_SIZE));
   
   // Handle page change
@@ -74,7 +63,7 @@ export function BlogPostsGrid({ title = 'Blog Posts' }: BlogPostsGridProps) {
             placeholder="Search posts..."
             size="lg"
             radius="md"
-            icon={<IconSearch size={20} />}
+            rightSection={<IconSearch size={20} />}
             value={searchQuery}
             onChange={handleSearchChange}
             className="max-w-md"
@@ -90,17 +79,17 @@ export function BlogPostsGrid({ title = 'Blog Posts' }: BlogPostsGridProps) {
             message={`Error loading posts: ${error instanceof Error ? error.message : 'Unknown error'}`} 
             onRetry={() => refetch()}
           />
-        ) : posts && posts.length > 0 ? (
+        ) : posts.length > 0 ? (
           <>
             <AppGrid>
               {posts.map((post) => (
                 <AppCard
                   key={post.id}
                   id={post.id}
-                  title={post.title}
-                  description={post.description}
+                  title={post.title || ''}
+                  description={post.description || ''}
                   createdAt={post.createdAt}
-                  commentsCount={post.comments?.length || 0}
+                  commentsCount={0} // Default to 0 since posts from API might not have comments array
                   onClick={(id) => console.log(`Clicked post ${id}`)}
                 />
               ))}

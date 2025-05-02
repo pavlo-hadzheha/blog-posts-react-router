@@ -16,7 +16,6 @@ export interface AppPaginationProps {
 export function AppPagination({ 
   currentPage, 
   totalPages, 
-  pageSize, 
   totalItems,
   onPageChange 
 }: AppPaginationProps) {
@@ -27,10 +26,10 @@ export function AppPagination({
         onChange={onPageChange}
         total={totalPages}
         radius="md"
-        withEdges
+        hideWithOnePage
       />
       
-      {totalItems !== undefined && (
+      {totalItems !== undefined && totalPages > 1 && (
         <div className="text-sm text-gray-500">
           Showing page {currentPage} of {totalPages} 
           {totalItems > 0 && ` • ${totalItems} total items`}

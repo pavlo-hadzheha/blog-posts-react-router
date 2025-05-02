@@ -1,10 +1,12 @@
 import { axiosInstance } from './axios-instance';
-import type { paths } from './schema/v1';
-import { mockPosts } from './mock-data';
+import { config } from '~/shared/config/env';
+import type { paths, components } from '~/shared/api/schema/v1';
 
 // Response types from the API schema
-type PostResponse = paths['/api/Posts/']['get']['responses']['200']['content']['application/json'][0];
-type GetPostsParams = paths['/api/Posts/']['get']['parameters']['query'];
+type PostSchema = components['schemas']['PostSchema'];
+type PostsResponse = paths['/api/Posts/']['get']['responses']['200']['content']['application/json'];
+type SinglePostResponse = paths['/api/Posts/{postId}/']['get']['responses']['200']['content']['application/json'];
+export type GetPostsParams = Required<paths['/api/Posts/']['get']['parameters']['query']>;
 
 // Type for pagination parameters
 export interface PaginationParams {
@@ -13,46 +15,25 @@ export interface PaginationParams {
   search?: string;
 }
 
-// Helper function to simulate API delay
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
 // API functions for posts
 export const postsApi = {
   // Get paginated list of posts
-  getPosts: async (params: PaginationParams): Promise<PostResponse[]> => {
-    // For demo purposes, use mock data instead of real API
-    await delay(800); // Simulate network delay
-    
-    let filteredPosts = [...mockPosts];
-    
-    // Apply search filter if provided
-    if (params.search) {
-      const searchLower = params.search.toLowerCase();
-      filteredPosts = filteredPosts.filter(post => 
-        post.title.toLowerCase().includes(searchLower) || 
-        post.description.toLowerCase().includes(searchLower)
-      );
-    }
-    
-    // Calculate pagination
-    const startIndex = (params.page - 1) * params.pageSize;
-    const endIndex = startIndex + params.pageSize;
-    
-    // Return paginated results
-    return filteredPosts.slice(startIndex, endIndex);
+  getPosts: async (params: GetPostsParams): Promise<{ posts: PostSchema[]; total: number }> => {
+    const response = await axiosInstance.get(`${config.api.baseUrl}/Posts`, { params });
+    return response.data;
   },
 
   // Get single post by ID
-  getPostById: async (postId: string): Promise<PostResponse> => {
-    // For demo purposes, use mock data instead of real API
-    await delay(500);
-    
-    const post = mockPosts.find(p => p.id === postId);
-    
-    if (!post) {
-      throw new Error(`Post with ID ${postId} not found`);
-    }
-    
-    return post;
-  }
+  getPostById: async (postId: string): Promise<SinglePostResponse> => {
+    const response = await axiosInstance.get(`${config.api.baseUrl}/Posts/${postId}`);
+    return response.data;
+  },
+
+  // Search posts
+  searchPosts: async (query: string): Promise<PostSchema[]> => {
+    const response = await axiosInstance.get(`${config.api.baseUrl}/Posts/search`, { 
+      params: { q: query } 
+    });
+    return response.data.posts;
+  },
 }; 

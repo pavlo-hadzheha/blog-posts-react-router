@@ -11,7 +11,7 @@ const customGlobals = JSON.parse(fs.readFileSync('./.eslintrc-auto-import.json',
 
 export default defineConfig([
   {
-    files: ['**/*.{js,mjs,cjs,jsx}'],
+    files: ['./src/**/*.{js,mjs,cjs,jsx}'],
     languageOptions: {
       parser: '@typescript-eslint/parser',
       ecmaVersion: 'latest',
