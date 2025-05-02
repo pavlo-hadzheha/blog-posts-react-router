@@ -1,0 +1,13 @@
+# config for openapi-typescript command
+apis:
+  core@v1:
+    root: http://localhost:8000/api/documentation/json
+    x-openapi-ts:
+      output: ./src/shared/api/schema/v1.d.ts
+
+resolve:
+  http:
+    headers:
+      - matches: http://localhost:8000/api/documentation/json
+        name: Authorization
+        value: 'Basic YWRtaW46YWRtaW4='
