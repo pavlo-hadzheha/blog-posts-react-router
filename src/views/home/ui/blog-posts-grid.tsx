@@ -4,6 +4,7 @@ import { IconSearch } from '@tabler/icons-react';
 import { useDebouncedValue } from '@mantine/hooks';
 import { AppCard, AppGrid, AppPagination, AppLoading, AppError } from '../../../shared/ui';
 import { usePosts } from '../model/use-posts';
+import { SortControls, useSort } from '~/features/sort';
 
 export interface BlogPostsGridProps {
   /** Title displayed at the top of the posts grid */
@@ -16,13 +17,26 @@ export function BlogPostsGrid({ title = 'Blog Posts' }: BlogPostsGridProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 500);
   
+  // Sort state
+  const { 
+    titleSort, 
+    dateSort, 
+    commentsSort, 
+    setTitleSort, 
+    setDateSort, 
+    setCommentsSort 
+  } = useSort();
+  
   const PAGE_SIZE = 10;
 
-  // Fetch posts data with pagination and search
+  // Fetch posts data with pagination, search, and sort
   const { data, isLoading, isError, error, refetch } = usePosts({
     page,
     pageSize: PAGE_SIZE,
-    search: debouncedSearchQuery
+    search: debouncedSearchQuery,
+    titleSort,
+    dateSort,
+    commentsSort
   });
   
   // Extract posts and total from API response
@@ -40,6 +54,22 @@ export function BlogPostsGrid({ title = 'Blog Posts' }: BlogPostsGridProps) {
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(event.target.value);
     setPage(1); // Reset to first page when search changes
+  };
+  
+  // Handle sort changes
+  const handleTitleSortChange = (value?: string) => {
+    setTitleSort(value as any);
+    setPage(1); // Reset to first page when sort changes
+  };
+  
+  const handleDateSortChange = (value?: string) => {
+    setDateSort(value as any);
+    setPage(1); // Reset to first page when sort changes
+  };
+  
+  const handleCommentsSortChange = (value?: string) => {
+    setCommentsSort(value as any);
+    setPage(1); // Reset to first page when sort changes
   };
   
   return (
@@ -72,6 +102,16 @@ export function BlogPostsGrid({ title = 'Blog Posts' }: BlogPostsGridProps) {
       </Box>
       
       <Container size="xl" className="pb-16">
+        <SortControls
+          titleSort={titleSort}
+          dateSort={dateSort}
+          commentsSort={commentsSort}
+          onTitleSortChange={handleTitleSortChange}
+          onDateSortChange={handleDateSortChange}
+          onCommentsSortChange={handleCommentsSortChange}
+          className="mb-6"
+        />
+        
         {isLoading ? (
           <AppLoading text="Loading posts..." />
         ) : isError ? (
