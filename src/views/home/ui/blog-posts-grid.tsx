@@ -26,7 +26,7 @@ export function BlogPostsGrid({ title = 'Blog Posts' }: BlogPostsGridProps) {
 
   // Create API-friendly sort array for backend
   const apiSortCriteria = useMemo(
-    () => sortCriteria.filter((criterion) => criterion.dir !== undefined).map(toApiSortCriterion),
+    () => sortCriteria.map(toApiSortCriterion),
     [sortCriteria]
   )
 

@@ -6,18 +6,25 @@ import {
   Box,
 } from '@mantine/core'
 import { IconSearch } from '@tabler/icons-react'
-import { useSensors, useSensor, PointerSensor, DndContext, closestCenter } from '@dnd-kit/core'
+import { 
+  useSensors, 
+  useSensor, 
+  PointerSensor, 
+  KeyboardSensor,
+  DndContext, 
+  closestCenter, 
+  DragOverlay
+} from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
-import { SortableContext, horizontalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
-import { useState, useMemo } from 'react'
+import { SortableContext, horizontalListSortingStrategy, arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
+import { useState } from 'react'
 import type { SortFieldConfig } from '../model/sort-config'
-import { SortableItem } from './sortable-item'
-import type { SortCriterion, SortFieldName } from '~/shared/model'
-import type { SortDirection } from '~/shared/model'
+import { SortableItem, SortItemContent } from './sortable-item'
+import type { SortDirection, SortFieldName, SortCriterion } from '~/shared/model'
 
 export interface SortControlsProps {
   sortConfigs: SortFieldConfig[]
-  sortCriteria: SortCriterion[]
+  sortCriteria: SortCriterion[] // Kept for backward compatibility
   onSortChange: (field: SortFieldName, direction?: SortDirection) => void
   onSortReorder: (configs: SortFieldConfig[]) => void
   searchQuery?: string
@@ -27,7 +34,6 @@ export interface SortControlsProps {
 
 export function SortControls({
   sortConfigs,
-  sortCriteria,
   onSortChange,
   onSortReorder,
   searchQuery = '',
@@ -35,21 +41,22 @@ export function SortControls({
   className,
 }: SortControlsProps) {
   const [activeId, setActiveId] = useState<SortFieldName | null>(null)
+  
+  // Find the active config for the overlay
+  const activeConfig = activeId 
+    ? sortConfigs.find(config => config.field === activeId) 
+    : null
 
   const sensors = useSensors(
-    useSensor(PointerSensor)
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px of movement required before activation
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
   )
-
-  // Create a map of active sort criteria for easy lookup
-  const activeSortCriteriaMap = useMemo(() => {
-    const map = new Map<SortFieldName, SortDirection>();
-    sortCriteria.forEach(criterion => {
-      if (criterion.dir !== undefined) {
-        map.set(criterion.by, criterion.dir);
-      }
-    });
-    return map;
-  }, [sortCriteria]);
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event
@@ -98,10 +105,9 @@ export function SortControls({
             >
               <Group gap="xs" wrap="wrap">
                 {sortConfigs.map((config) => {
-                  const value = activeSortCriteriaMap.get(config.field);
-                  const priority = value !== undefined 
-                    ? sortCriteria.findIndex(c => c.by === config.field)
-                    : -1;
+                  // Calculate priority based on position in the active configs
+                  const activeConfigs = sortConfigs.filter(c => c.dir !== undefined)
+                  const priority = activeConfigs.findIndex(c => c.field === config.field)
 
                   return (
                     <SortableItem
@@ -109,15 +115,34 @@ export function SortControls({
                       id={config.field}
                       label={config.label}
                       type={config.type}
-                      value={value}
+                      value={config.dir}
                       onChange={(direction) => onSortChange(config.field, direction)}
                       isDragging={activeId === config.field}
-                      priority={priority}
+                      priority={priority !== -1 ? priority : undefined}
                     />
                   )
                 })}
               </Group>
             </SortableContext>
+            
+            <DragOverlay adjustScale={true} zIndex={1000}>
+              {activeId && activeConfig && (
+                <SortItemContent
+                  type={activeConfig.type}
+                  label={activeConfig.label}
+                  value={activeConfig.dir}
+                  isDragging={true}
+                  className="shadow-lg"
+                  style={{ 
+                    opacity: 1,
+                    boxShadow: '0 5px 15px rgba(0,0,0,0.1)',
+                    background: 'white', 
+                    cursor: 'grabbing',
+                    transform: 'scale(1.05)',
+                  }}
+                />
+              )}
+            </DragOverlay>
           </DndContext>
         </Flex>
       </Box>

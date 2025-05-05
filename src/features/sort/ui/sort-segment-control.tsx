@@ -24,9 +24,9 @@ export function SortSegmentControl({ type, value, onChange, className, disabled 
   
   const renderLabel = (option: SortConfigOption) => {
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
         {option.icon}
-        <span>{option.label}</span>
+        <span>{option.value === SortDirection.ASC ? 'Asc' : 'Desc'}</span>
       </div>
     );
   };
@@ -37,8 +37,15 @@ export function SortSegmentControl({ type, value, onChange, className, disabled 
     config.options[SortDirection.DESC]
   ];
 
+  // Create tooltip text that includes the field and detailed sort information
+  const tooltipText = `${config.label}: ${value === SortDirection.ASC ? 
+    config.options[SortDirection.ASC].label : 
+    value === SortDirection.DESC ? 
+    config.options[SortDirection.DESC].label : 
+    config.tooltip}`;
+
   return (
-    <Tooltip label={config.tooltip}>
+    <Tooltip label={tooltipText}>
       <SegmentedControl
         value={value}
         onChange={handleChange}
@@ -49,6 +56,15 @@ export function SortSegmentControl({ type, value, onChange, className, disabled 
         className={className}
         size="sm"
         disabled={disabled}
+        styles={{
+          root: { minWidth: '100px' },
+          label: { 
+            display: 'flex', 
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '0 8px'
+          }
+        }}
       />
     </Tooltip>
   );

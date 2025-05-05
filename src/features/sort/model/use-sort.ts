@@ -4,11 +4,17 @@ import { useMemo, useState } from 'react'
 import { SORT_CONFIG } from './sort-config'
 import type { SortFieldConfig } from './sort-config'
 
+/**
+ * Create SortCriterion array from configuration objects
+ * Only includes active sort criteria (those with a direction)
+ */
 const createSortCriteriaFromConfig = (config: SortFieldConfig[]): SortCriterion[] =>
-  config.map((item) => ({
-    by: item.field as SortFieldName,
-    dir: item.defaultDirection,
-  }))
+  config
+    .filter((item) => item.dir !== undefined)
+    .map((item) => ({
+      by: item.field,
+      dir: item.dir,
+    }))
 
 export interface UseSortResult {
   sortConfigs: SortFieldConfig[]
@@ -19,101 +25,53 @@ export interface UseSortResult {
 }
 
 export const useSort = (initialConfigs: SortFieldConfig[] = SORT_CONFIG): UseSortResult => {
-  const [sortConfigs, setSortConfigs] = useState<SortFieldConfig[]>(initialConfigs)
+  const initializedConfigs = useMemo(() => {
+    return initialConfigs.map((config) => ({
+      ...config,
+      dir: config.defaultDirection,
+    }))
+  }, [initialConfigs])
+
+  const [sortConfigs, setSortConfigs] = useState<SortFieldConfig[]>(initializedConfigs)
 
   const sortCriteria = useMemo<SortCriterion[]>(() => createSortCriteriaFromConfig(sortConfigs), [sortConfigs])
 
-  const [activeCriteria, setActiveCriteria] = useState<Map<SortFieldName, SortDirection>>(
-    new Map(sortCriteria.filter((c) => c.dir !== undefined).map((c) => [c.by, c.dir as SortDirection]))
-  )
-
   const updateSortCriterion = (field: SortFieldName, direction?: SortDirection) => {
-    const newActiveCriteria = new Map(activeCriteria)
+    const configIndex = sortConfigs.findIndex((c) => c.field === field)
+    if (configIndex === -1) return
 
-    if (!direction) {
-      newActiveCriteria.delete(field)
-    } else {
-      const wasActive = newActiveCriteria.has(field)
-      newActiveCriteria.delete(field)
+    const newConfigs = [...sortConfigs]
+    const wasActive = newConfigs[configIndex].dir !== undefined
+    newConfigs[configIndex] = { ...newConfigs[configIndex], dir: direction }
 
-      const activeFields = Array.from(newActiveCriteria.keys())
-
-      if (!wasActive) {
-        activeFields.unshift(field)
-      } else {
-        const index = sortConfigs.findIndex((c) => c.field === field)
-        if (index !== -1) {
-          activeFields.splice(index, 0, field)
-        } else {
-          activeFields.push(field)
-        }
-      }
-
-      newActiveCriteria.clear()
-      activeFields.forEach((f) => {
-        if (f === field) {
-          newActiveCriteria.set(f, direction)
-        } else {
-          const dir = activeCriteria.get(f)
-          if (dir !== undefined) {
-            newActiveCriteria.set(f, dir)
-          }
-        }
-      })
+    if (!wasActive && direction !== undefined) {
+      const [item] = newConfigs.splice(configIndex, 1)
+      newConfigs.unshift(item)
     }
 
-    setActiveCriteria(newActiveCriteria)
-
-    const activeKeys = Array.from(newActiveCriteria.keys())
-    const orderedConfigs = [...sortConfigs].sort((a, b) => {
-      const aIndex = activeKeys.indexOf(a.field as SortFieldName)
-      const bIndex = activeKeys.indexOf(b.field as SortFieldName)
-
-      if (aIndex === -1 && bIndex === -1) return 0
-      if (aIndex === -1) return 1
-      if (bIndex === -1) return -1
-      return aIndex - bIndex
-    })
-
-    setSortConfigs(orderedConfigs)
+    setSortConfigs(newConfigs)
   }
 
   const reorderSortConfigs = (newConfigs: SortFieldConfig[]) => {
-    setSortConfigs(newConfigs)
+    const dirMap = new Map(sortConfigs.map((config) => [config.field, config.dir]))
 
-    const newActiveCriteria = new Map<SortFieldName, SortDirection>()
-    newConfigs.forEach((config) => {
-      const direction = activeCriteria.get(config.field as SortFieldName)
-      if (direction !== undefined) {
-        newActiveCriteria.set(config.field as SortFieldName, direction)
-      }
-    })
+    const updatedConfigs = newConfigs.map((config) => ({
+      ...config,
+      dir: dirMap.get(config.field),
+    }))
 
-    setActiveCriteria(newActiveCriteria)
+    setSortConfigs(updatedConfigs)
   }
 
   const resetSortCriteria = () => {
-    setSortConfigs(initialConfigs)
-
-    // Reset active criteria based on default directions
-    const newActiveCriteria = new Map<SortFieldName, SortDirection>()
-    initialConfigs.forEach((config) => {
-      if (config.defaultDirection !== undefined) {
-        newActiveCriteria.set(config.field as SortFieldName, config.defaultDirection)
-      }
-    })
-
-    setActiveCriteria(newActiveCriteria)
+    setSortConfigs(initializedConfigs)
   }
 
-  return useMemo(
-    () => ({
-      sortConfigs,
-      sortCriteria: Array.from(activeCriteria.entries()).map(([by, dir]) => ({ by, dir })),
-      updateSortCriterion,
-      reorderSortConfigs,
-      resetSortCriteria,
-    }),
-    [sortConfigs, activeCriteria]
-  )
+  return {
+    sortConfigs,
+    sortCriteria,
+    updateSortCriterion,
+    reorderSortConfigs,
+    resetSortCriteria,
+  }
 }
