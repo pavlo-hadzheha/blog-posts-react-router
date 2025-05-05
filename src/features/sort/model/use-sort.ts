@@ -1,138 +1,119 @@
-import { useState } from 'react';
-import { SortDirection, SortField } from '~/shared/model';
+import { SortDirection } from '~/shared/model'
+import type { SortCriterion, SortFieldName } from '~/shared/model'
+import { useMemo, useState } from 'react'
+import { SORT_CONFIG } from './sort-config'
+import type { SortFieldConfig } from './sort-config'
 
-export interface SortCriterion {
-  field: SortField;
-  direction: SortDirection;
+const createSortCriteriaFromConfig = (config: SortFieldConfig[]): SortCriterion[] =>
+  config.map((item) => ({
+    by: item.field as SortFieldName,
+    dir: item.defaultDirection,
+  }))
+
+export interface UseSortResult {
+  sortConfigs: SortFieldConfig[]
+  sortCriteria: SortCriterion[]
+  updateSortCriterion: (field: SortFieldName, direction?: SortDirection) => void
+  reorderSortConfigs: (newOrder: SortFieldConfig[]) => void
+  resetSortCriteria: () => void
 }
 
-export interface SortState {
-  titleSort?: SortDirection;
-  dateSort?: SortDirection;
-  commentsSort?: SortDirection;
-  // Array to track the order of active sort criteria
-  sortOrder: SortField[];
-}
+export const useSort = (initialConfigs: SortFieldConfig[] = SORT_CONFIG): UseSortResult => {
+  const [sortConfigs, setSortConfigs] = useState<SortFieldConfig[]>(initialConfigs)
 
-interface UseSortResult extends SortState {
-  setTitleSort: (direction?: SortDirection) => void;
-  setDateSort: (direction?: SortDirection) => void;
-  setCommentsSort: (direction?: SortDirection) => void;
-  resetSort: () => void;
-  // Methods for handling sort order
-  reorderSortCriteria: (newOrder: SortField[]) => void;
-  addSortCriterion: (field: SortField) => void;
-  removeSortCriterion: (field: SortField) => void;
-}
+  const sortCriteria = useMemo<SortCriterion[]>(() => createSortCriteriaFromConfig(sortConfigs), [sortConfigs])
 
-// Map sort fields to their corresponding state property names
-const sortFieldToProperty = {
-  [SortField.TITLE]: 'titleSort',
-  [SortField.CREATED_AT]: 'dateSort',
-  [SortField.COMMENTS_COUNT]: 'commentsSort',
-};
+  const [activeCriteria, setActiveCriteria] = useState<Map<SortFieldName, SortDirection>>(
+    new Map(sortCriteria.filter((c) => c.dir !== undefined).map((c) => [c.by, c.dir as SortDirection]))
+  )
 
-// Default order of all available sort fields
-const DEFAULT_SORT_ORDER = [
-  SortField.CREATED_AT,
-  SortField.TITLE,
-  SortField.COMMENTS_COUNT
-];
+  const updateSortCriterion = (field: SortFieldName, direction?: SortDirection) => {
+    const newActiveCriteria = new Map(activeCriteria)
 
-export const useSort = (initialState?: Partial<SortState>): UseSortResult => {
-  const [titleSort, setTitleSort] = useState<SortDirection | undefined>(
-    initialState?.titleSort
-  );
-  
-  const [dateSort, setDateSort] = useState<SortDirection | undefined>(
-    initialState?.dateSort || SortDirection.DESC // Default to newest first
-  );
-  
-  const [commentsSort, setCommentsSort] = useState<SortDirection | undefined>(
-    initialState?.commentsSort
-  );
+    if (!direction) {
+      newActiveCriteria.delete(field)
+    } else {
+      const wasActive = newActiveCriteria.has(field)
+      newActiveCriteria.delete(field)
 
-  // Initialize sort order with all available fields
-  const [sortOrder, setSortOrder] = useState<SortField[]>(
-    initialState?.sortOrder || DEFAULT_SORT_ORDER
-  );
+      const activeFields = Array.from(newActiveCriteria.keys())
 
-  // Helper function to ensure all fields are present in the sort order
-  const ensureAllFieldsInSortOrder = (currentOrder: SortField[]): SortField[] => {
-    const allFields = [SortField.TITLE, SortField.CREATED_AT, SortField.COMMENTS_COUNT];
-    const result = [...currentOrder];
-    
-    // Add any missing fields at the end
-    allFields.forEach(field => {
-      if (!result.includes(field)) {
-        result.push(field);
+      if (!wasActive) {
+        activeFields.unshift(field)
+      } else {
+        const index = sortConfigs.findIndex((c) => c.field === field)
+        if (index !== -1) {
+          activeFields.splice(index, 0, field)
+        } else {
+          activeFields.push(field)
+        }
       }
-    });
-    
-    return result;
-  };
 
-  const addSortCriterion = (field: SortField) => {
-    setSortOrder((current) => {
-      // Only add if not already in the order array
-      if (!current.includes(field)) {
-        return [...current, field];
+      newActiveCriteria.clear()
+      activeFields.forEach((f) => {
+        if (f === field) {
+          newActiveCriteria.set(f, direction)
+        } else {
+          const dir = activeCriteria.get(f)
+          if (dir !== undefined) {
+            newActiveCriteria.set(f, dir)
+          }
+        }
+      })
+    }
+
+    setActiveCriteria(newActiveCriteria)
+
+    const activeKeys = Array.from(newActiveCriteria.keys())
+    const orderedConfigs = [...sortConfigs].sort((a, b) => {
+      const aIndex = activeKeys.indexOf(a.field as SortFieldName)
+      const bIndex = activeKeys.indexOf(b.field as SortFieldName)
+
+      if (aIndex === -1 && bIndex === -1) return 0
+      if (aIndex === -1) return 1
+      if (bIndex === -1) return -1
+      return aIndex - bIndex
+    })
+
+    setSortConfigs(orderedConfigs)
+  }
+
+  const reorderSortConfigs = (newConfigs: SortFieldConfig[]) => {
+    setSortConfigs(newConfigs)
+
+    const newActiveCriteria = new Map<SortFieldName, SortDirection>()
+    newConfigs.forEach((config) => {
+      const direction = activeCriteria.get(config.field as SortFieldName)
+      if (direction !== undefined) {
+        newActiveCriteria.set(config.field as SortFieldName, direction)
       }
-      return current;
-    });
-  };
+    })
 
-  const removeSortCriterion = (field: SortField) => {
-    // We no longer remove from sortOrder, just mark as inactive
-    // The field stays in the order for visual consistency
-  };
+    setActiveCriteria(newActiveCriteria)
+  }
 
-  // Reorder the sort criteria
-  const reorderSortCriteria = (newOrder: SortField[]) => {
-    // Ensure all fields are present
-    setSortOrder(ensureAllFieldsInSortOrder(newOrder));
-  };
+  const resetSortCriteria = () => {
+    setSortConfigs(initialConfigs)
 
-  // Enhance the existing setters to update the sort order
-  const setTitleSortWithOrder = (direction?: SortDirection) => {
-    setTitleSort(direction);
-    if (direction) {
-      addSortCriterion(SortField.TITLE);
-    }
-  };
+    // Reset active criteria based on default directions
+    const newActiveCriteria = new Map<SortFieldName, SortDirection>()
+    initialConfigs.forEach((config) => {
+      if (config.defaultDirection !== undefined) {
+        newActiveCriteria.set(config.field as SortFieldName, config.defaultDirection)
+      }
+    })
 
-  const setDateSortWithOrder = (direction?: SortDirection) => {
-    setDateSort(direction);
-    if (direction) {
-      addSortCriterion(SortField.CREATED_AT);
-    }
-  };
+    setActiveCriteria(newActiveCriteria)
+  }
 
-  const setCommentsSortWithOrder = (direction?: SortDirection) => {
-    setCommentsSort(direction);
-    if (direction) {
-      addSortCriterion(SortField.COMMENTS_COUNT);
-    }
-  };
-
-  const resetSort = () => {
-    setTitleSort(undefined);
-    setDateSort(SortDirection.DESC); // Default to newest first
-    setCommentsSort(undefined);
-    setSortOrder(DEFAULT_SORT_ORDER); // Reset to default order
-  };
-
-  return {
-    titleSort,
-    dateSort,
-    commentsSort,
-    sortOrder,
-    setTitleSort: setTitleSortWithOrder,
-    setDateSort: setDateSortWithOrder,
-    setCommentsSort: setCommentsSortWithOrder,
-    resetSort,
-    reorderSortCriteria,
-    addSortCriterion,
-    removeSortCriterion,
-  };
-}; 
+  return useMemo(
+    () => ({
+      sortConfigs,
+      sortCriteria: Array.from(activeCriteria.entries()).map(([by, dir]) => ({ by, dir })),
+      updateSortCriterion,
+      reorderSortConfigs,
+      resetSortCriteria,
+    }),
+    [sortConfigs, activeCriteria]
+  )
+}

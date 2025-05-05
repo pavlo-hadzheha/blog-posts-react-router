@@ -1,13 +1,4 @@
 /**
- * Sort field options
- */
-export enum SortField {
-  TITLE = 'title',
-  CREATED_AT = 'createdAt',
-  COMMENTS_COUNT = 'commentsCount',
-}
-
-/**
  * Sort direction options
  */
 export enum SortDirection {
@@ -16,67 +7,21 @@ export enum SortDirection {
 }
 
 /**
- * Sort criterion interface representing a single sort option
+ * Valid sort field names supported by the API
+ */
+export type SortFieldName = 'title' | 'createdAt' | 'commentsCount';
+
+/**
+ * Sort criterion interface for use throughout the application
+ * Array position implicitly determines priority
  */
 export interface SortCriterion {
-  field: SortField;
-  direction: SortDirection;
+  by: SortFieldName;
+  dir: SortDirection | undefined;
 }
 
 /**
- * Sort option interface for UI controls
+ * Convert a sort criterion for API consumption
+ * Currently just passes through since we're using the same format
  */
-export interface SortOption {
-  label: string;
-  value: SortDirection;
-  icon?: string;
-}
-
-/**
- * Sort options for the title control
- */
-export const TITLE_SORT_OPTIONS: SortOption[] = [
-  { 
-    label: 'A-Z', 
-    value: SortDirection.ASC,
-  },
-  { 
-    label: 'Z-A', 
-    value: SortDirection.DESC,
-  },
-];
-
-/**
- * Sort options for the created date control
- */
-export const DATE_SORT_OPTIONS: SortOption[] = [
-  { 
-    label: 'Newest First', 
-    value: SortDirection.DESC,
-  },
-  { 
-    label: 'Oldest First', 
-    value: SortDirection.ASC,
-  },
-];
-
-/**
- * Sort options for the comments count control
- */
-export const COMMENTS_SORT_OPTIONS: SortOption[] = [
-  { 
-    label: 'Most Comments', 
-    value: SortDirection.DESC,
-  },
-  { 
-    label: 'Least Comments', 
-    value: SortDirection.ASC,
-  },
-];
-
-/**
- * Default sort criteria
- */
-export const DEFAULT_SORT_CRITERIA: SortCriterion[] = [
-  { field: SortField.CREATED_AT, direction: SortDirection.DESC }
-]; 
+export const toApiSortCriterion = (criterion: SortCriterion): SortCriterion => criterion; 

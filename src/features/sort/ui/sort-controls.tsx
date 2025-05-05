@@ -1,258 +1,126 @@
-import { Group, Paper, Text } from '@mantine/core'
-import { SortDirection, SortField } from '~/shared/model'
-import { useMemo, useState } from 'react'
 import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragOverlay,
-} from '@dnd-kit/core'
+  Group,
+  TextInput,
+  Stack,
+  Flex,
+  Box,
+} from '@mantine/core'
+import { IconSearch } from '@tabler/icons-react'
+import { useSensors, useSensor, PointerSensor, DndContext, closestCenter } from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  horizontalListSortingStrategy,
-} from '@dnd-kit/sortable'
-import { SortSegmentControl } from './sort-segment-control'
-import { IconGripVertical } from '@tabler/icons-react'
+import { SortableContext, horizontalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
+import { useState, useMemo } from 'react'
+import type { SortFieldConfig } from '../model/sort-config'
 import { SortableItem } from './sortable-item'
+import type { SortCriterion, SortFieldName } from '~/shared/model'
+import type { SortDirection } from '~/shared/model'
 
 export interface SortControlsProps {
-  titleSort?: SortDirection
-  dateSort?: SortDirection
-  commentsSort?: SortDirection
-  onTitleSortChange: (value?: SortDirection) => void
-  onDateSortChange: (value?: SortDirection) => void
-  onCommentsSortChange: (value?: SortDirection) => void
-  sortOrder?: SortField[]
-  onSortOrderChange?: (newOrder: SortField[]) => void
+  sortConfigs: SortFieldConfig[]
+  sortCriteria: SortCriterion[]
+  onSortChange: (field: SortFieldName, direction?: SortDirection) => void
+  onSortReorder: (configs: SortFieldConfig[]) => void
+  searchQuery?: string
+  onSearchChange: (value: string) => void
   className?: string
 }
 
-// All available sort fields
-const ALL_SORT_FIELDS = [SortField.TITLE, SortField.CREATED_AT, SortField.COMMENTS_COUNT]
-
 export function SortControls({
-  titleSort,
-  dateSort,
-  commentsSort,
-  onTitleSortChange,
-  onDateSortChange,
-  onCommentsSortChange,
-  sortOrder = [],
-  onSortOrderChange,
+  sortConfigs,
+  sortCriteria,
+  onSortChange,
+  onSortReorder,
+  searchQuery = '',
+  onSearchChange,
   className,
 }: SortControlsProps) {
-  // Track the current active (dragged) item
-  const [activeId, setActiveId] = useState<SortField | null>(null)
+  const [activeId, setActiveId] = useState<SortFieldName | null>(null)
 
-  // Set up sensors for drag and drop
   const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
+    useSensor(PointerSensor)
   )
 
-  // Get active sort fields in priority order
-  const activeSortFields = useMemo(() => {
-    const activeSortFields: SortField[] = []
-
-    // Only include fields that have active sort values
-    sortOrder.forEach((field) => {
-      if (
-        (field === SortField.TITLE && titleSort !== undefined) ||
-        (field === SortField.CREATED_AT && dateSort !== undefined) ||
-        (field === SortField.COMMENTS_COUNT && commentsSort !== undefined)
-      ) {
-        activeSortFields.push(field)
+  // Create a map of active sort criteria for easy lookup
+  const activeSortCriteriaMap = useMemo(() => {
+    const map = new Map<SortFieldName, SortDirection>();
+    sortCriteria.forEach(criterion => {
+      if (criterion.dir !== undefined) {
+        map.set(criterion.by, criterion.dir);
       }
-    })
+    });
+    return map;
+  }, [sortCriteria]);
 
-    return activeSortFields
-  }, [sortOrder, titleSort, dateSort, commentsSort])
-
-  // Get sorting information for each field
-  const sortFieldInfo = useMemo(() => {
-    return ALL_SORT_FIELDS.map((field) => {
-      let value
-      switch (field) {
-        case SortField.TITLE:
-          value = titleSort
-          break
-        case SortField.CREATED_AT:
-          value = dateSort
-          break
-        case SortField.COMMENTS_COUNT:
-          value = commentsSort
-          break
-      }
-
-      // Calculate the priority of this field (if active)
-      const priority = value !== undefined ? activeSortFields.indexOf(field) : -1
-
-      return { id: field, value, priority }
-    })
-  }, [titleSort, dateSort, commentsSort, activeSortFields])
-
-  // Sort the fields based on the sortOrder if it exists and has fields
-  const sortedFieldInfo = useMemo(() => {
-    if (!sortOrder || sortOrder.length === 0) return sortFieldInfo
-
-    // Create a copy of fields
-    const sorted = [...sortFieldInfo]
-
-    // Sort based on the sortOrder
-    sorted.sort((a, b) => {
-      const aIndex = sortOrder.indexOf(a.id)
-      const bIndex = sortOrder.indexOf(b.id)
-
-      // If both items are in sortOrder, compare their positions
-      if (aIndex !== -1 && bIndex !== -1) {
-        return aIndex - bIndex
-      }
-
-      // If only one item is in sortOrder, prioritize it
-      if (aIndex !== -1) return -1
-      if (bIndex !== -1) return 1
-
-      // If neither is in sortOrder, maintain original order
-      return 0
-    })
-
-    return sorted
-  }, [sortFieldInfo, sortOrder])
-
-  // Handle drag start event
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event
-    setActiveId(active.id as SortField)
+    setActiveId(active.id as SortFieldName)
   }
 
-  // Handle drag end event
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
     setActiveId(null)
 
-    // Only proceed if there's a valid drop target and it's different from the source
     if (!over || active.id === over.id) {
       return
     }
 
-    // Use sortOrder as the source of truth for ordering, or fallback to ALL_SORT_FIELDS
-    const effectiveOrder = sortOrder.length > 0 ? [...sortOrder] : [...ALL_SORT_FIELDS]
+    const oldIndex = sortConfigs.findIndex((config) => config.field === active.id)
+    const newIndex = sortConfigs.findIndex((config) => config.field === over.id)
 
-    // Find the dragged item and drop target in our order array
-    const activeIndex = effectiveOrder.indexOf(active.id as SortField)
-    const overIndex = effectiveOrder.indexOf(over.id as SortField)
-
-    // Both indices should be valid
-    if (activeIndex === -1 || overIndex === -1) {
+    if (oldIndex === -1 || newIndex === -1) {
       return
     }
 
-    // Use arrayMove to correctly reorder the items
-    const newOrder = arrayMove(effectiveOrder, activeIndex, overIndex)
-
-    // Notify parent component
-    onSortOrderChange?.(newOrder)
+    const newSortConfigs = arrayMove([...sortConfigs], oldIndex, newIndex)
+    onSortReorder(newSortConfigs)
   }
-
-  // Get handlers for each sort type
-  const getSortChangeHandler = (field: SortField) => {
-    switch (field) {
-      case SortField.TITLE:
-        return onTitleSortChange
-      case SortField.CREATED_AT:
-        return onDateSortChange
-      case SortField.COMMENTS_COUNT:
-        return onCommentsSortChange
-      default:
-        return () => {}
-    }
-  }
-
-  // Map field to sort type
-  const getTypeFromField = (field: SortField) => {
-    switch (field) {
-      case SortField.TITLE:
-        return 'title'
-      case SortField.CREATED_AT:
-        return 'date'
-      case SortField.COMMENTS_COUNT:
-        return 'comments'
-      default:
-        return 'title'
-    }
-  }
-
-  // Get value for each field
-  const getValueForField = (field: SortField) => {
-    switch (field) {
-      case SortField.TITLE:
-        return titleSort
-      case SortField.CREATED_AT:
-        return dateSort
-      case SortField.COMMENTS_COUNT:
-        return commentsSort
-      default:
-        return undefined
-    }
-  }
-
-  // Find the item info for the active id
-  const activeItem = activeId ? sortedFieldInfo.find((item) => item.id === activeId) : null
 
   return (
-    <Paper p="md" withBorder radius="md" className={className}>
-      <Group align="center" justify="space-between" wrap="wrap" gap="xs">
-        <Text size="sm" fw={500} color="dimmed">
-          Sort by:
-        </Text>
+    <Stack className={className} gap="xs">
+      <TextInput
+        placeholder="Search..."
+        leftSection={<IconSearch size={16} />}
+        value={searchQuery}
+        onChange={(event) => onSearchChange(event.currentTarget.value)}
+      />
 
-        <DndContext
-          sensors={sensors}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          collisionDetection={closestCenter}
-        >
-          <SortableContext items={sortedFieldInfo} strategy={horizontalListSortingStrategy}>
-            <Group gap="xs" wrap="wrap">
-              {sortedFieldInfo.map(({ id, value, priority }) => (
-                <SortableItem
-                  key={id}
-                  id={id}
-                  type={getTypeFromField(id)}
-                  value={getValueForField(id)}
-                  onChange={getSortChangeHandler(id)}
-                  priority={priority}
-                />
-              ))}
-            </Group>
-          </SortableContext>
+      <Box mt={4}>
+        <Flex justify="space-between" align="center">
+          <DndContext
+            sensors={sensors}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            collisionDetection={closestCenter}
+          >
+            <SortableContext 
+              items={sortConfigs.map(config => config.field)} 
+              strategy={horizontalListSortingStrategy}
+            >
+              <Group gap="xs" wrap="wrap">
+                {sortConfigs.map((config) => {
+                  const value = activeSortCriteriaMap.get(config.field);
+                  const priority = value !== undefined 
+                    ? sortCriteria.findIndex(c => c.by === config.field)
+                    : -1;
 
-          {/* Overlay for consistent dragging experience */}
-          <DragOverlay adjustScale={false}>
-            {activeId && activeItem && (
-              <Group gap="xs" align="center">
-                <div className="cursor-grab p-1">
-                  <IconGripVertical size={18} />
-                </div>
-                <SortSegmentControl
-                  type={getTypeFromField(activeId)}
-                  value={getValueForField(activeId)}
-                  onChange={() => {}}
-                  disabled={true}
-                />
+                  return (
+                    <SortableItem
+                      key={config.field}
+                      id={config.field}
+                      label={config.label}
+                      type={config.type}
+                      value={value}
+                      onChange={(direction) => onSortChange(config.field, direction)}
+                      isDragging={activeId === config.field}
+                      priority={priority}
+                    />
+                  )
+                })}
               </Group>
-            )}
-          </DragOverlay>
-        </DndContext>
-      </Group>
-    </Paper>
+            </SortableContext>
+          </DndContext>
+        </Flex>
+      </Box>
+    </Stack>
   )
 }

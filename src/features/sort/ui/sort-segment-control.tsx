@@ -1,7 +1,7 @@
 import { SegmentedControl, Tooltip } from '@mantine/core';
 import { SortDirection } from '~/shared/model';
-import { getSortConfig } from '../model/sort-config';
-import type { SortOption, SortType } from '../model/sort-config';
+import { SORT_CONFIG } from '../model/sort-config';
+import type { SortConfigOption, SortType } from '../model/sort-config';
 
 export interface SortSegmentControlProps {
   type: SortType;
@@ -16,25 +16,33 @@ export function SortSegmentControl({ type, value, onChange, className, disabled 
     onChange(newValue as SortDirection);
   };
 
-  // Get configuration for this sort type
-  const config = getSortConfig(type);
+  // Get configuration for this sort type from SORT_CONFIG
+  const config = SORT_CONFIG.find(c => c.type === type);
+  if (!config) {
+    throw new Error(`Sort type ${type} not found in configuration`);
+  }
   
-  const renderLabel = (option: SortOption) => {
+  const renderLabel = (option: SortConfigOption) => {
     return (
       <div className="flex items-center gap-2">
         {option.icon}
-        {option.secondIcon}
         <span>{option.label}</span>
       </div>
     );
   };
+
+  // Create options array from the configuration
+  const options = [
+    config.options[SortDirection.ASC],
+    config.options[SortDirection.DESC]
+  ];
 
   return (
     <Tooltip label={config.tooltip}>
       <SegmentedControl
         value={value}
         onChange={handleChange}
-        data={config.options.map(option => ({
+        data={options.map(option => ({
           value: option.value,
           label: renderLabel(option),
         }))}
