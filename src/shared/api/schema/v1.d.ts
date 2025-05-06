@@ -516,6 +516,7 @@ export interface paths {
                     page?: number;
                     pageSize?: number;
                     search?: string;
+                    nComments?: number;
                     sort?: {
                         /** @enum {string} */
                         by: "createdAt" | "commentsCount" | "title";

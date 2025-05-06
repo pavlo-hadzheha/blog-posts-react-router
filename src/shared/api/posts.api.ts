@@ -8,12 +8,7 @@ type PostSchema = components['schemas']['PostSchema']
 type PostsResponse = paths['/api/Posts/']['get']['responses']['200']['content']['application/json']
 type SinglePostResponse = paths['/api/Posts/{postId}/']['get']['responses']['200']['content']['application/json']
 
-export type GetPostsParams = Required<paths['/api/Posts/']['get']['parameters']['query']> & {
-  page: number;
-  pageSize: number;
-  search?: string;
-  sort?: SortCriterion[];
-}
+export type GetPostsParams = Required<paths['/api/Posts/']['get']['parameters']['query']>
 
 // API functions for posts
 export const postsApi = {

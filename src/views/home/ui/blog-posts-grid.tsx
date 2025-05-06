@@ -9,62 +9,55 @@ import type { SortDirection, SortFieldName } from '~/shared/model'
 import type { SortFieldConfig } from '~/features/sort/model/sort-config'
 
 export interface BlogPostsGridProps {
-  /** Title displayed at the top of the posts grid */
   title?: string
 }
 
 export function BlogPostsGrid({ title = 'Blog Posts' }: BlogPostsGridProps) {
-  // Pagination and search state
   const [page, setPage] = useState(1)
   const [searchQuery, setSearchQuery] = useState('')
+  const [nComments, setNComments] = useState<number>(0)
   const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 500)
 
-  // Sort state using our enhanced hook
   const { sortConfigs, sortCriteria, updateSortCriterion, reorderSortConfigs, resetSortCriteria } = useSort()
 
   const PAGE_SIZE = 10
 
-  // Create API-friendly sort array for backend
-  const apiSortCriteria = useMemo(
-    () => sortCriteria.map(toApiSortCriterion),
-    [sortCriteria]
-  )
+  const apiSortCriteria = useMemo(() => sortCriteria.map(toApiSortCriterion), [sortCriteria])
 
-  // Fetch posts data with pagination, search, and sort
   const { data, isLoading, isError, error, refetch } = usePosts({
     page,
     pageSize: PAGE_SIZE,
     search: debouncedSearchQuery,
     sort: apiSortCriteria,
+    nComments: nComments,
   })
 
-  // Extract posts and total from API response
   const posts = data?.posts || []
   const totalPosts = data?.total || 0
   const totalPages = Math.max(1, Math.ceil(totalPosts / PAGE_SIZE))
 
-  // Handle page change
   const handlePageChange = (newPage: number) => {
     setPage(newPage)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  // Handle search input change
   const handleSearchChange = (value: string) => {
     setSearchQuery(value)
-    setPage(1) // Reset to first page when search changes
   }
 
-  // Handle sort field change
   const handleSortChange = (field: SortFieldName, direction?: SortDirection) => {
     updateSortCriterion(field, direction)
-    setPage(1) // Reset to first page when sort changes
   }
 
-  // Handle sort reordering
   const handleSortReorder = (newConfigs: SortFieldConfig[]) => {
     reorderSortConfigs(newConfigs)
-    setPage(1) // Reset to first page when sort order changes
+    setPage(1)
+  }
+
+  const handleNCommentsChange = (value: number) => {
+    if (!value) setNComments(0)
+    else setNComments(value)
+    setPage(1)
   }
 
   return (
@@ -88,13 +81,15 @@ export function BlogPostsGrid({ title = 'Blog Posts' }: BlogPostsGridProps) {
 
       <Container size="xl" className="pb-16">
         <SortControls
+          className="mb-6"
           sortConfigs={sortConfigs}
           sortCriteria={sortCriteria}
-          onSortChange={handleSortChange}
-          onSortReorder={handleSortReorder}
-          className="mb-6"
           searchQuery={searchQuery}
+          nComments={nComments}
           onSearchChange={handleSearchChange}
+          onSortReorder={handleSortReorder}
+          onSortChange={handleSortChange}
+          onNCommentsChange={handleNCommentsChange}
         />
 
         {isLoading ? (
